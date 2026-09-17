@@ -1,0 +1,9 @@
+# Límites ampliados para soportar grabaciones y archivos de audio de hasta ~3 horas
+# NOTA: el HTTPS local (certificados en certs/) se activa con INICIAR_APP.bat,
+# no aquí, para que este archivo sirva igual en Streamlit Cloud.
+[server]
+# Tamaño máximo (MB) de mensajes por websocket
+maxMessageSize = 600
+# Tamaño máximo (MB) del canal de subida de archivos: por aquí viajan tanto
+# los archivos subidos como las grabaciones de st.audio_input (WAV, ~6 MB/min)
+maxUploadSize = 2000

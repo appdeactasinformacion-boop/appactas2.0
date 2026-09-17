@@ -1,0 +1,18 @@
+# Claves y secretos: NUNCA subir
+.env
+*.env
+.streamlit/secrets.toml
+
+# Certificados HTTPS locales (solo para uso en la red de la oficina)
+certs/
+
+# Artefactos generados por la app
+acta_generada.docx
+contador.txt
+usage_count.json
+usage_counter.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

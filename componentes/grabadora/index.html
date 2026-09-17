@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --azul: #2563EB;
+    --azul-oscuro: #1E40AF;
+    --gris: #6B7280;
+    --borde: #E5E7EB;
+    --rojo: #DC2626;
+    --texto: #31333F;
+  }
+  body {
+    margin: 0;
+    font-family: "Source Sans Pro", "Segoe UI", system-ui, sans-serif;
+    color: var(--texto);
+    background: transparent;
+  }
+  .caja {
+    background: #f8f9fb;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .fila { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .btn-mic {
+    background: var(--azul); color: #fff; border: none; border-radius: 50%;
+    width: 58px; height: 58px; font-size: 26px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(37,99,235,.35); transition: all .3s ease;
+  }
+  .btn-mic:hover { background: var(--azul-oscuro); transform: scale(1.05); }
+  .btn-ctrl {
+    border: 1px solid var(--borde); background: #fff; color: var(--texto);
+    border-radius: 8px; padding: 9px 16px; font-size: 15px; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn-ctrl.stop { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+  .punto-rec {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--rojo);
+    display: inline-block; animation: parpadeo 1s infinite;
+  }
+  .punto-rec.pausado { animation: none; background: #F59E0B; }
+  @keyframes parpadeo { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  .timer { font-family: Consolas, monospace; font-size: 22px; font-weight: 700; }
+  .nota { color: var(--gris); font-size: 14.5px; }
+  .exito { color: #177233; font-size: 15px; font-weight: 600; }
+  .error { color: var(--rojo); font-size: 14.5px; }
+  .oculto { display: none !important; }
+  .tam { color: var(--gris); font-size: 13px; margin-left: 4px; }
+</style>
+</head>
+<body>
+<div class="caja">
+
+  <!-- Estado: listo para grabar -->
+  <div id="panel-inicial" class="fila">
+    <button class="btn-mic" id="btn-iniciar" title="Iniciar grabación">🎙️</button>
+    <span class="nota">Presiona el micrófono para iniciar la grabación<br>
+    <small>Graba en formato comprimido: soporta reuniones de varias horas.</small></span>
+  </div>
+
+  <!-- Estado: grabando / en pausa -->
+  <div id="panel-grabando" class="fila oculto">
+    <span class="punto-rec" id="punto"></span>
+    <span class="timer" id="timer">00:00:00</span>
+    <span class="tam" id="tam-vivo"></span>
+    <button class="btn-ctrl" id="btn-pausa">⏸️ Pausar</button>
+    <button class="btn-ctrl stop" id="btn-detener">⏹️ Detener</button>
+  </div>
+
+  <!-- Estado: procesando -->
+  <div id="panel-procesando" class="fila oculto">
+    <span class="nota">📤 Preparando y enviando la grabación... no cierres la pestaña.</span>
+  </div>
+
+  <!-- Estado: enviada -->
+  <div id="panel-listo" class="fila oculto">
+    <span class="exito" id="msg-listo">✅ Grabación lista</span>
+    <button class="btn-ctrl" id="btn-nueva">🗑️ Grabar de nuevo</button>
+  </div>
+
+  <div id="msg-error" class="error oculto"></div>
+</div>
+
+<script>
+  // ---- protocolo de componente de Streamlit ----
+  function post(msg) {
+    window.parent.postMessage(Object.assign({ isStreamlitMessage: true }, msg), "*");
+  }
+  function ajustarAltura() {
+    post({ type: "streamlit:setFrameHeight", height: document.body.scrollHeight + 12 });
+  }
+  function enviarValor(v) {
+    post({ type: "streamlit:setComponentValue", value: v, dataType: "json" });
+  }
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "streamlit:render") ajustarAltura();
+  });
+  post({ type: "streamlit:componentReady", apiVersion: 1 });
+  ajustarAltura();
+
+  // ---- lógica de grabación ----
+  var mediaRecorder = null, stream = null, trozos = [], bytesAcum = 0;
+  var segundos = 0, intervalo = null, enPausa = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function mostrar(panel) {
+    ["panel-inicial", "panel-grabando", "panel-procesando", "panel-listo"].forEach(function (p) {
+      $(p).classList.toggle("oculto", p !== panel);
+    });
+    ajustarAltura();
+  }
+  function fmt(s) {
+    var h = String(Math.floor(s / 3600)).padStart(2, "0");
+    var m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    var x = String(s % 60).padStart(2, "0");
+    return h + ":" + m + ":" + x;
+  }
+  function tic() {
+    if (!enPausa) {
+      segundos++;
+      $("timer").textContent = fmt(segundos);
+      $("tam-vivo").textContent = "(" + (bytesAcum / 1048576).toFixed(1) + " MB)";
+    }
+  }
+  function error(msj) {
+    $("msg-error").textContent = msj;
+    $("msg-error").classList.remove("oculto");
+    ajustarAltura();
+  }
+
+  $("btn-iniciar").onclick = async function () {
+    $("msg-error").classList.add("oculto");
+    if (!window.isSecureContext || !navigator.mediaDevices) {
+      error("🔒 El navegador solo permite grabar en conexiones seguras. Abre la app con https:// (por ejemplo https://172.16.20.5:8501) y acepta la advertencia de certificado.");
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      error("🎤 No se pudo acceder al micrófono. Revisa el permiso del navegador (candado junto a la dirección) e intenta de nuevo.");
+      return;
+    }
+    var mime = "";
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+      mime = "audio/webm;codecs=opus";
+    } else if (window.MediaRecorder && MediaRecorder.isTypeSupported("audio/webm")) {
+      mime = "audio/webm";
+    } else {
+      error("Este navegador no soporta grabación comprimida. Usa Chrome o Edge actualizados.");
+      return;
+    }
+    trozos = []; bytesAcum = 0; segundos = 0; enPausa = false;
+    $("timer").textContent = "00:00:00";
+    $("tam-vivo").textContent = "";
+    // 48 kbps mono: calidad sobrada para voz; ~21 MB por hora
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 48000 });
+    mediaRecorder.ondataavailable = function (e) {
+      if (e.data && e.data.size > 0) { trozos.push(e.data); bytesAcum += e.data.size; }
+    };
+    mediaRecorder.onstop = finalizar;
+    mediaRecorder.start(1000); // entrega un trozo por segundo
+    intervalo = setInterval(tic, 1000);
+    $("btn-pausa").innerHTML = "⏸️ Pausar";
+    $("punto").classList.remove("pausado");
+    mostrar("panel-grabando");
+  };
+
+  $("btn-pausa").onclick = function () {
+    if (!mediaRecorder) return;
+    if (!enPausa) {
+      mediaRecorder.pause();
+      enPausa = true;
+      $("btn-pausa").innerHTML = "▶️ Reanudar";
+      $("punto").classList.add("pausado");
+    } else {
+      mediaRecorder.resume();
+      enPausa = false;
+      $("btn-pausa").innerHTML = "⏸️ Pausar";
+      $("punto").classList.remove("pausado");
+    }
+  };
+
+  $("btn-detener").onclick = function () {
+    if (!mediaRecorder) return;
+    clearInterval(intervalo);
+    mostrar("panel-procesando");
+    mediaRecorder.stop();
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+  };
+
+  function finalizar() {
+    var blob = new Blob(trozos, { type: "audio/webm" });
+    trozos = [];
+    var lector = new FileReader();
+    lector.onload = function () {
+      var b64 = String(lector.result).split(",")[1];
+      enviarValor({ b64: b64, mime: "audio/webm", duracion: segundos, bytes: blob.size });
+      $("msg-listo").textContent =
+        "✅ Grabación lista: " + fmt(segundos) + " (" + (blob.size / 1048576).toFixed(1) + " MB)";
+      mostrar("panel-listo");
+    };
+    lector.onerror = function () { error("No se pudo procesar la grabación."); mostrar("panel-inicial"); };
+    lector.readAsDataURL(blob);
+  }
+
+  $("btn-nueva").onclick = function () {
+    enviarValor(null); // limpia la grabación anterior en la app
+    mostrar("panel-inicial");
+  };
+
+  // aviso si intentan cerrar/recargar mientras se graba
+  window.addEventListener("beforeunload", function (e) {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+</script>
+</body>
+</html>

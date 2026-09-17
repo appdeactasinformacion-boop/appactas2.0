@@ -1,7 +1,9 @@
 streamlit
-google-generativeai
+google-genai
+anthropic
 docxtpl
 python-docx
 pillow
 python-dotenv
 requests
+truststore
