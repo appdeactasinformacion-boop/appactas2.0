@@ -23,11 +23,11 @@ CSS = """
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
         .app-header img {
-            height: 80px;
+            /* el logo es transparente y ya viene recortado: se muestra grande y limpio */
+            height: 88px;
             max-width: 100%;
             width: auto;
             object-fit: contain;
-            border-radius: 10px;
         }
         .app-header h1 {
             /* se adapta al ancho de la pantalla: min 1.3em, max 2.2em */
@@ -81,7 +81,7 @@ def aplicar_css():
     st.markdown(CSS, unsafe_allow_html=True)
 
 
-def mostrar_encabezado(logo_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo", "logo.png")):
+def mostrar_encabezado(logo_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo", "logo_app.png")):
     if os.path.exists(logo_path):
         with open(logo_path, "rb") as f:
             logo_base64 = base64.b64encode(f.read()).decode("utf-8")

@@ -16,13 +16,12 @@ from claude_utils import configurar_claude
 from extractor import extraer_info
 from grabadora import grabadora_audio
 from transcripcion import transcribir_audio
-# from correo import enviar_alerta_correo   # <- descomentar para activar alertas
-# from config import LIMITE_CONTADOR
+
 
 st.set_page_config(page_title="Generador de Actas", page_icon="📝", layout="wide")
 
-cliente = configurar_gemini()          # transcribe el audio (y respaldo del acta)
-cliente_claude = configurar_claude()   # genera el acta; None si no hay API key
+cliente = configurar_gemini()          
+cliente_claude = configurar_claude()   
 
 estilos.aplicar_css()
 estilos.mostrar_encabezado()
@@ -30,9 +29,7 @@ estilos.mostrar_encabezado()
 contador_actual = obtener_contador()
 st.info(f"🧮 Contador global de actas: **{contador_actual}**")
 
-# if contador_actual >= LIMITE_CONTADOR:
-#     st.warning(f"⚠️ Se alcanzó el límite de {LIMITE_CONTADOR} actas. Es momento de reiniciar el contador.")
-#     enviar_alerta_correo(f"Se ha alcanzado el límite de {contador_actual} actas. Debes reiniciar el API en la app de actas.")
+
 
 if "transcripcion_area" not in st.session_state:
     st.session_state["transcripcion_area"] = ""
@@ -43,7 +40,8 @@ if not os.path.exists(TEMPLATES_DIR):
     st.error(f"No se encontró el directorio de plantillas: {TEMPLATES_DIR}")
     st.stop()
 
-template_files = [f for f in os.listdir(TEMPLATES_DIR) if f.endswith(".docx")]
+# se excluyen los temporales de Word (~$...) que aparecen mientras un documento está abierto
+template_files = [f for f in os.listdir(TEMPLATES_DIR) if f.endswith(".docx") and not f.startswith("~")]
 if not template_files:
     st.error("No hay plantillas disponibles en la carpeta 'templates'.")
     st.stop()

@@ -1,3 +1,13 @@
+# Tema fijo CLARO con acentos azules (el logo de la empresa es azul).
+# Al definir el tema aquí, la app se ve igual para todos los usuarios
+# aunque tengan el sistema o el navegador en modo oscuro.
+[theme]
+base = "light"
+primaryColor = "#2563EB"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9"
+textColor = "#1F2937"
+
 # Límites ampliados para soportar grabaciones y archivos de audio de hasta ~3 horas
 # NOTA: el HTTPS local (certificados en certs/) se activa con INICIAR_APP.bat,
 # no aquí, para que este archivo sirva igual en Streamlit Cloud.

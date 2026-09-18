@@ -29,6 +29,7 @@ def _construir_prompt(text_to_process, fields):
     -	{{SEDE}}: extrae la sede (oficina, edificio, empresa, etc.) donde se realizó la reunión.
     -   {{LUGAR_REUNION}}: extrae el lugar donde se realizo la reunion.
     -	{{OBJETIVO_DE_LA_REUNION}}: extrae el objetivo de la reunión explicado de forma clara y completa.
+    - {{MODADALIDAD_REUNION}}: Debes especificar si la reunión fue presencial, virtual o híbrida.
     - {{TEMAS_TRATADOS}}: Esta debe ser una LISTA de objetos JSON. Cada objeto representa un tema tratado en la reunión.
     - Cada objeto debe tener las claves:
         - tema: extrae el tema tratado.
