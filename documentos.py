@@ -24,6 +24,13 @@ def get_fields_from_template(template_path):
 
 
 def normalizar_listas(data):
+    # La IA a veces devuelve la clave "responsablen" y las plantillas usan
+    # "resposablen": se aceptan ambas escrituras para que nunca salga vacío.
+    lista_comp = data.get("COMPROMISOS_DE_REUNION", [])
+    if isinstance(lista_comp, list):
+        for item in lista_comp:
+            if isinstance(item, dict) and not item.get("resposablen") and item.get("responsablen"):
+                item["resposablen"] = item["responsablen"]
     claves = {
         "ASISTENTES_REUNION": ["nombreasistentereu", "cargoasistentereunion"],
         "TEMAS_TRATADOS_N": ["tema", "responsablet"],

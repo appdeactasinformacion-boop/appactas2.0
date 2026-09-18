@@ -6,6 +6,11 @@
 # Certificados HTTPS locales (solo para uso en la red de la oficina)
 certs/
 
+# Temporales de Word (se crean al abrir un documento y a veces quedan huérfanos)
+~$*
+~*.tmp
+templates/~*
+
 # Artefactos generados por la app
 acta_generada.docx
 contador.txt
